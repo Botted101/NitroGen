@@ -1,0 +1,5 @@
+{
+  "num_threads": 4,
+  "num_requests_per_thread": 5,
+  "amount_to_generate": 100
+}

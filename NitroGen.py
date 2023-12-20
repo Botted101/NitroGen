@@ -1,13 +1,18 @@
 import requests
 import json
 import uuid
+import threading
+import math
+from datetime import datetime
 
-def send_discord_request():
-    """
-    Send a Discord API request with a generated partnerUserId.
+def load_config():
+    """Load configuration settings from a file."""
+    with open('config.json', 'r') as config_file:
+        config = json.load(config_file)
+    return config
 
-    :return: Response object.
-    """
+def send_discord_request(output_file):
+    """Send a Discord API request with a generated partnerUserId."""
     url = 'https://api.discord.gx.games/v1/direct-fulfillment'
     headers = {
         'authority': 'api.discord.gx.games',
@@ -42,21 +47,66 @@ def send_discord_request():
     # Extract the token from the response
     token = json.loads(response.text).get('token', '')
 
-    return response, token
+    # Write the output to the file
+    output_line = f'https://discord.com/billing/partner-promotions/1180231712274387115/{token}/\n'
+    with open(output_file, 'a') as file:
+        file.write(output_line)
 
-# Number of requests to make
-num_requests = 5  # Change this to the desired number of requests
+    # Print the response
+    print(f"Status Code: {response.status_code}")
+    print(f"Output Line: {output_line}")
 
-# Open the output file in write mode
-with open('output.txt', 'w') as output_file:
-    for _ in range(num_requests):
-        # Send the request and get the response and token
-        response, token = send_discord_request()
+def main():
+    # Load configuration from config.json
+    config = load_config()
 
-        # Write the output to the file
-        output_line = f'https://discord.com/billing/partner-promotions/1180231712274387115/{token}/\n'
-        output_file.write(output_line)
+    # Number of threads
+    num_threads = config.get('num_threads', 2)
 
-        # Print the response
-        print(f"Status Code: {response.status_code}")
-        print(f"Output Line: {output_line}")
+    # Number of requests per thread
+    num_requests_per_thread = config.get('num_requests_per_thread', 5)
+
+    # Total number of requests to generate
+    amount_to_generate = config.get('amount_to_generate', 20)
+
+    # Calculate the number of threads needed
+    num_threads = min(num_threads, amount_to_generate)
+
+    # Calculate the number of requests per thread
+    requests_per_thread = math.ceil(amount_to_generate / num_threads)
+
+    # Create a timestamp for the output file
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+
+    # Create the output filename with timestamp
+    output_file = f'output_{timestamp}.txt'
+
+    # Create a lock for thread safety
+    lock = threading.Lock()
+
+    # Function to be executed by each thread
+    def threaded_function():
+        for _ in range(requests_per_thread):
+            # Check if the total number of requests has been reached
+            with lock:
+                nonlocal amount_to_generate
+                if amount_to_generate <= 0:
+                    return
+                amount_to_generate -= 1
+
+            # Send the request and get the response
+            send_discord_request(output_file)
+
+    # Create and start threads
+    threads = []
+    for _ in range(num_threads):
+        thread = threading.Thread(target=threaded_function)
+        threads.append(thread)
+        thread.start()
+
+    # Wait for all threads to finish
+    for thread in threads:
+        thread.join()
+
+if __name__ == "__main__":
+    main()
