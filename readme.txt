@@ -1,2 +1,2 @@
 1. To get the bot running do pip install requests in the folders directory.
-2. Depending on how many you want to generate you will need to edit the number in NitroGen, it's on line 48 (automatically generates 5)
+2. Depending on how many you want to generate you will need to edit the number in NitroGen.py, it's on line 48 (automatically generates 5)
